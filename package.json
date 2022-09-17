@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "alasql": "^1.7.3",
+    "ts-node": "^10.9.1"
+  }
+}
