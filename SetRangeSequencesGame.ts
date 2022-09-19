@@ -59,6 +59,10 @@ export class SetRangeSequencesGame {
     }
 }
 
-const app = new SetRangeSequencesGame(1, 10);
-const result = app.executeSequence();
-console.log(result.length);
+// const app = new SetRangeSequencesGame(1, 10);
+// const result = app.executeSequence();
+// console.log(result.length);
+
+// result.forEach((f)=> {
+//     console.log(f);
+// });
