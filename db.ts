@@ -109,7 +109,7 @@ export class DB {
             return;
         }
 
-        const chunks = _.chunk(this._sequences, 1000000);
+        const chunks = _.chunk(this._sequences, 500000);
 
         const bar = new ProgressBar('-> Processing [:bar] :percent :etas', {
             total: chunks.length * 2,
