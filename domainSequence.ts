@@ -59,7 +59,7 @@ export class domainSequence {
 
 
 /* SALVAR DADOS */
-const domain = new domainSequence(1, 20);
+const domain = new domainSequence(1, 10);
 const result = domain.list;
 
 console.log(result.length);
