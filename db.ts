@@ -9,41 +9,41 @@ export class DB {
     _docStoreAddress = "https://a.free.m4r6i0.ravendb.cloud";
     _docStorageDataName = "lotus";
     _docPsw = "432E3C266F593211EEB6B83AE69C42E5";
-    _sequences: Sequence[];
-    _documentName: string;
-    _isResetIndex: boolean;
+    _sequences?: Sequence[];
+    _documentName?: string;
+    _isResetIndex?: boolean;
 
-    constructor(listSequences: Sequence[], docName: string, resetIndex: boolean) {
+    constructor(listSequences?: Sequence[], docName?: string, resetIndex?: boolean) {
         this._sequences = listSequences;
         this._documentName = docName;
         this._isResetIndex = resetIndex;
     }
 
-    get IsResetIndex(): boolean { 
-        return this._isResetIndex;
+    private get IsResetIndex(): boolean { 
+        return this._isResetIndex ?? false;
     }
 
-    get documentName() : string { 
+    private get documentName() : string { 
         return `${this._documentName}/`;
     }
 
-    get docStorage(): string {
+    private get docStorage(): string {
         return this._docStoreAddress;
     }
 
-    get docStorageDatabase(): string {
+    private get docStorageDatabase(): string {
         return this._docStorageDataName;
     }
 
-    get docStoragePassword(): string {
+    private get docStoragePassword(): string {
         return this._docPsw;
     }
 
-    get localePfxFile(): string {
+    private get localePfxFile(): string {
         return path.join(__dirname, "cert", "free.m4r6i0.client.certificate.with.password.pfx");
     }
 
-    get authenticateOptions(): Object {
+    private get authenticateOptions(): Object {
         const authOptions = {
             type: "pfx",
             certificate: fs.readFileSync(this.localePfxFile),
@@ -52,43 +52,61 @@ export class DB {
         return authOptions;
     }
 
-    get listSequences() {
+    private get listSequences() {
         return this._sequences;
     }
 
-    get Store(): DocumentStore { 
+    private get Store(): DocumentStore { 
         const store = new DocumentStore(this.docStorage, this.docStorageDatabase, this.authenticateOptions);
         store.initialize();
         return store;
     }
 
-    get bulkaOptions(): BulkInsertOptions {
+    private get bulkaOptions(): BulkInsertOptions {
         return {
             useCompression: true,
         }
     }
 
-    get bulka(): BulkInsertOperation { 
+    private get bulka(): BulkInsertOperation { 
         return this.Store.bulkInsert(this.bulkaOptions);
     }
 
-    async createAsyncSequence() {
+    async getAsyncAllSequencesOrderbyRank(): Promise<Sequence[]> {
+        const session = this.Store.openSession();
+        //
+        const result = await session.query({
+            collection: "Sequences"
+        }).orderBy("rankId", "Long").all() as Sequence[];
+        //
+        return result;
+    }
+
+    async getAsyncSequencesBySequenceNumbers(seq: Sequence): Promise<Sequence[]> { 
+        const session = this.Store.openSession();
+        //
+        const result = await session.query({
+            collection: "Sequences"
+        }).whereEquals("n1", seq.n1)
+          .whereEquals("n2", seq.n2)
+          .whereEquals("n3", seq.n3)
+          .whereEquals("n4", seq.n4)
+          .whereEquals("n5", seq.n5)
+          .whereEquals("n6", seq.n6).all() as Sequence[];
+        //
+        return result;
+    }
+
+    async saveAsyncSequence() {
         if(this.IsResetIndex)
             this.resetIndex();
 
-        const session = this.Store.openSession(this.docStorageDatabase);
-
+        const session = this.Store.openSession();
         if(this.listSequences) { 
-            console.log('createAsyncSequence')
 
             this.listSequences.forEach(async (seq, i)=> {
                 const seqId = `${this.documentName}${i}`;
-                //console.log(this.changeSequenceObject(seq));
-                //console.log(seq);
-                //await this.bulka.store(this.changeSequenceObject(seq), seqId);
-                
                 await this.bulka.store(seq, seqId)
-                
             })
         }
         await this.bulka.finish();
