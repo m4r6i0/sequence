@@ -3,9 +3,15 @@ import fs from "fs";
 import path from "path";
 import { BulkInsertOperation, BulkInsertOptions } from "ravendb/dist/Documents/BulkInsertOperation";
 import { Sequence } from "./model";
+import { Queue } from "./Queue";
+import _ from "lodash";
+
+interface QueueValue {
+    sequence: Sequence,
+    index: number,
+}
 
 export class DB {
-
     _docStoreAddress = "https://a.free.m4r6i0.ravendb.cloud";
     _docStorageDataName = "lotus";
     _docPsw = "432E3C266F593211EEB6B83AE69C42E5";
@@ -19,11 +25,11 @@ export class DB {
         this._isResetIndex = resetIndex;
     }
 
-    private get IsResetIndex(): boolean { 
+    private get IsResetIndex(): boolean {
         return this._isResetIndex ?? false;
     }
 
-    private get documentName() : string { 
+    private get documentName(): string {
         return `${this._documentName}/`;
     }
 
@@ -56,7 +62,7 @@ export class DB {
         return this._sequences;
     }
 
-    private get Store(): DocumentStore { 
+    private get Store(): DocumentStore {
         const store = new DocumentStore(this.docStorage, this.docStorageDatabase, this.authenticateOptions);
         store.initialize();
         return store;
@@ -68,7 +74,7 @@ export class DB {
         }
     }
 
-    private get bulka(): BulkInsertOperation { 
+    private get bulka(): BulkInsertOperation {
         return this.Store.bulkInsert(this.bulkaOptions);
     }
 
@@ -82,34 +88,43 @@ export class DB {
         return result;
     }
 
-    async getAsyncSequencesBySequenceNumbers(seq: Sequence): Promise<Sequence[]> { 
+    async getAsyncSequencesBySequenceNumbers(seq: Sequence): Promise<Sequence[]> {
         const session = this.Store.openSession();
         //
         const result = await session.query({
             collection: "Sequences"
         }).whereEquals("n1", seq.n1)
-          .whereEquals("n2", seq.n2)
-          .whereEquals("n3", seq.n3)
-          .whereEquals("n4", seq.n4)
-          .whereEquals("n5", seq.n5)
-          .whereEquals("n6", seq.n6).all() as Sequence[];
+            .whereEquals("n2", seq.n2)
+            .whereEquals("n3", seq.n3)
+            .whereEquals("n4", seq.n4)
+            .whereEquals("n5", seq.n5)
+            .whereEquals("n6", seq.n6).all() as Sequence[];
         //
         return result;
     }
 
     async saveAsyncSequence() {
-        if(this.IsResetIndex)
+        if (this.IsResetIndex)
             this.resetIndex();
 
-        const session = this.Store.openSession();
-        if(this.listSequences) { 
-
-            this.listSequences.forEach(async (seq, i)=> {
-                const seqId = `${this.documentName}${i}`;
-                await this.bulka.store(seq, seqId)
-            })
+        if (!this._sequences) {
+            return;
         }
-        await this.bulka.finish();
+
+        const chunks = _.chunk(this._sequences, 1000);
+
+        let i = 0;
+
+        for (const chunk of chunks) {
+            const bulk = this.Store.bulkInsert(this.bulkaOptions);
+
+            for (const sequence of chunk) {
+                const seqId = `${this.documentName}${++i}`;
+                console.log(seqId);
+                await bulk.store(sequence, seqId);
+            }
+            await bulk.finish();
+        }
     }
 
     private async resetIndex() {
