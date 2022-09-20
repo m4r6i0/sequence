@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 import { BulkInsertOperation, BulkInsertOptions } from "ravendb/dist/Documents/BulkInsertOperation";
 import { Sequence } from "./model";
-import { Queue } from "./Queue";
 import _ from "lodash";
 
 interface QueueValue {
@@ -74,10 +73,6 @@ export class DB {
         }
     }
 
-    private get bulka(): BulkInsertOperation {
-        return this.Store.bulkInsert(this.bulkaOptions);
-    }
-
     async getAsyncAllSequencesOrderbyRank(): Promise<Sequence[]> {
         const session = this.Store.openSession();
         //
@@ -110,16 +105,14 @@ export class DB {
         if (!this._sequences) {
             return;
         }
-
-        const chunks = _.chunk(this._sequences, 1000);
-
-        let i = 0;
+        const chunks = _.chunk(this._sequences, 1000000);
+        let i = 1;
 
         for (const chunk of chunks) {
             const bulk = this.Store.bulkInsert(this.bulkaOptions);
 
             for (const sequence of chunk) {
-                const seqId = `${this.documentName}${++i}`;
+                const seqId = `${this.documentName}${i++}`;
                 console.log(seqId);
                 await bulk.store(sequence, seqId);
             }
