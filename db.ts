@@ -117,7 +117,7 @@ export class DB {
                 await bulk.store(sequence, seqId);
             }
             await bulk.finish();
-        }
+        } 
     }
 
     private async resetIndex() {
