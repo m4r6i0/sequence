@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { BulkInsertOperation, BulkInsertOptions } from "ravendb/dist/Documents/BulkInsertOperation";
 import { Sequence } from "./model";
+import ProgressBar from "progress";
 import _ from "lodash";
 
 interface QueueValue {
@@ -99,23 +100,33 @@ export class DB {
     }
 
     async saveAsyncSequence() {
+        
+
         if (this.IsResetIndex)
             this.resetIndex();
 
         if (!this._sequences) {
             return;
         }
+
         const chunks = _.chunk(this._sequences, 1000000);
+
+        const bar = new ProgressBar('-> Processing [:bar] :percent :etas', {
+            total: chunks.length * 2,
+            width: 30,
+        });
+
         let i = 1;
 
         for (const chunk of chunks) {
+            bar.tick(1);
             const bulk = this.Store.bulkInsert(this.bulkaOptions);
-
+            
             for (const sequence of chunk) {
                 const seqId = `${this.documentName}${i++}`;
-                console.log(seqId);
                 await bulk.store(sequence, seqId);
             }
+            bar.tick(1);
             await bulk.finish();
         } 
     }

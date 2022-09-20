@@ -1,8 +1,10 @@
 {
   "dependencies": {
+    "@types/progress": "^2.0.5",
     "alasql": "^1.7.3",
     "fastq": "^1.13.0",
     "lodash": "^4.17.21",
+    "progress": "^2.0.3",
     "ravendb": "^5.2.7",
     "ts-node": "^10.9.1"
   },
