@@ -1,15 +1,30 @@
-import { DocumentStore } from "ravendb";
+import { DocumentConventions, DocumentStore, IMetadataDictionary, Json, ResetIndexOperation, SqlConnectionString } from "ravendb";
 import fs from "fs";
+import path from "path";
+import { BulkInsertOperation, BulkInsertOptions } from "ravendb/dist/Documents/BulkInsertOperation";
+import { Sequence } from "./model";
 
 export class DB {
 
     _docStoreAddress = "https://a.free.m4r6i0.ravendb.cloud";
     _docStorageDataName = "lotus";
     _docPsw = "432E3C266F593211EEB6B83AE69C42E5";
-    _sequences: [];
+    _sequences: Sequence[];
+    _documentName: string;
+    _isResetIndex: boolean;
 
-    constructor(listSequences: any) {
+    constructor(listSequences: Sequence[], docName: string, resetIndex: boolean) {
         this._sequences = listSequences;
+        this._documentName = docName;
+        this._isResetIndex = resetIndex;
+    }
+
+    get IsResetIndex(): boolean { 
+        return this._isResetIndex;
+    }
+
+    get documentName() : string { 
+        return `${this._documentName}/`;
     }
 
     get docStorage(): string {
@@ -24,10 +39,14 @@ export class DB {
         return this._docPsw;
     }
 
+    get localePfxFile(): string {
+        return path.join(__dirname, "cert", "free.m4r6i0.client.certificate.with.password.pfx");
+    }
+
     get authenticateOptions(): Object {
         const authOptions = {
             type: "pfx",
-            certificate: fs.readFileSync("C:\\source\\mega\\cert\\free.m4r6i0.client.certificate.with.password.pfx"),
+            certificate: fs.readFileSync(this.localePfxFile),
             password: this.docStoragePassword,
         }
         return authOptions;
@@ -39,45 +58,43 @@ export class DB {
 
     get Store(): DocumentStore { 
         const store = new DocumentStore(this.docStorage, this.docStorageDatabase, this.authenticateOptions);
-        store.conventions.findCollectionNameForObjectLiteral = entity => entity["collection"];
         store.initialize();
         return store;
     }
 
+    get bulkaOptions(): BulkInsertOptions {
+        return {
+            useCompression: true,
+        }
+    }
+
+    get bulka(): BulkInsertOperation { 
+        return this.Store.bulkInsert(this.bulkaOptions);
+    }
 
     async createAsyncSequence() {
+        if(this.IsResetIndex)
+            this.resetIndex();
+
         const session = this.Store.openSession(this.docStorageDatabase);
 
         if(this.listSequences) { 
             console.log('createAsyncSequence')
-            this.listSequences.forEach((seq)=> {
-                session.store(seq);
+
+            this.listSequences.forEach(async (seq, i)=> {
+                const seqId = `${this.documentName}${i}`;
+                //console.log(this.changeSequenceObject(seq));
+                //console.log(seq);
+                //await this.bulka.store(this.changeSequenceObject(seq), seqId);
+                
+                await this.bulka.store(seq, seqId)
+                
             })
         }
-        await session.saveChanges();
-        
-        // session.saveChanges().then(result => {
-        //     console.log('save OK');
-        //     console.log(result)
-        // }).catch(e => {
-        //     console.log('exception error');
-        //     console.log(e);
-        // })
+        await this.bulka.finish();
     }
 
-    createStoreSequence() {
-        // const session = this.Store.openSession();
-        // session.load(".").then((p)=> {
-        //     console.log(p);
-        // }).catch((e)=> {
-        //     console.warn(e);
-        // });
-       
-
-        // session.load('users/1-A').then((user)=> {
-        //     console.log(msg.blue(user));
-        // }).catch(e => {
-        //     console.warn(msg.red(e));
-        // })
+    private async resetIndex() {
+        await this.Store.maintenance.send(await new ResetIndexOperation(this.documentName.replace("/", "")));
     }
 }

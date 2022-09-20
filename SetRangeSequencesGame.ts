@@ -1,4 +1,5 @@
 import sql from 'alasql'
+import { Sequence } from './model';
 
 export class SetRangeSequencesGame {
     _min: number = 0 ;
@@ -53,9 +54,25 @@ export class SetRangeSequencesGame {
         });
     }
    
-    executeSequence() {
+    executeSequence(): Sequence[] {
         this.createTableSequences();
-        return sql(this.getQuerySequences);
+        const list = sql(this.getQuerySequences);
+        const sequences: Sequence[] = [];
+        
+        list.forEach((seq: any, index: number) => {
+            sequences.push(this.makeSequence(seq, index));
+        })
+        return sequences;
+    }
+
+    makeSequence(obj: any, index:number): Sequence {
+        return new Sequence(index,
+                            obj.n1, 
+                            obj.n2,
+                            obj.n3,
+                            obj.n4,
+                            obj.n5, 
+                            obj.n6);
     }
 }
 
